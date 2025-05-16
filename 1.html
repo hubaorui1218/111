@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能图像分割工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet">
+    
+    <!-- 配置Tailwind主题 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#165DFF',
+                        secondary: '#36D399',
+                        neutral: '#1E293B',
+                        'neutral-light': '#F8FAFC'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .shadow-soft {
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            }
+            .transition-all-300 {
+                transition: all 300ms ease-in-out;
+            }
+        }
+    </style>
+</head>
+<body class="font-inter bg-gray-50 text-neutral min-h-screen flex flex-col">
+    <!-- 顶部导航栏 -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-crop text-primary text-2xl"></i>
+                <h1 class="text-xl font-bold text-neutral">智能图像分割工具</h1>
+            </div>
+            <div class="hidden md:flex items-center space-x-4">
+                <button class="px-4 py-2 rounded-md text-sm font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-all-300">
+                    <i class="fa fa-question-circle mr-1"></i> 帮助
+                </button>
+                <button class="px-4 py-2 rounded-md text-sm font-medium bg-primary text-white hover:bg-primary/90 transition-all-300 shadow-md hover:shadow-lg">
+                    <i class="fa fa-save mr-1"></i> 保存项目
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="flex-grow container mx-auto px-4 py-6 flex flex-col lg:flex-row gap-6">
+        <!-- 左侧控制面板 -->
+        <div class="lg:w-1/4 bg-white rounded-xl shadow-soft p-5 flex flex-col gap-5">
+            <div>
+                <h2 class="text-lg font-semibold mb-3 flex items-center">
+                    <i class="fa fa-sliders text-primary mr-2"></i> 图像控制
+                </h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">选择图像</label>
+                        <div class="relative">
+                            <input type="file" id="imageInput" class="hidden" accept="image/*">
+                            <label for="imageInput" class="block w-full px-4 py-2 text-center bg-primary text-white rounded-md cursor-pointer hover:bg-primary/90 transition-all-300">
+                                <i class="fa fa-upload mr-1"></i> 上传图像
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="clearButton" class="px-3 py-2 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-all-300 flex items-center justify-center">
+                            <i class="fa fa-trash mr-1"></i> 清除标记
+                        </button>
+                        <button id="undoButton" class="px-3 py-2 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-all-300 flex items-center justify-center">
+                            <i class="fa fa-undo mr-1"></i> 撤销
+                        </button>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">调整画布大小</label>
+                        <div class="flex items-center space-x-2">
+                            <button class="p-2 bg-gray-200 rounded hover:bg-gray-300 transition-all-300">
+                                <i class="fa fa-search-minus"></i>
+                            </button>
+                            <span class="text-sm text-gray-600">100%</span>
+                            <button class="p-2 bg-gray-200 rounded hover:bg-gray-300 transition-all-300">
+                                <i class="fa fa-search-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div>
+                <h2 class="text-lg font-semibold mb-3 flex items-center">
+                    <i class="fa fa-paint-brush text-primary mr-2"></i> 分割工具
+                </h2>
+                <div class="space-y-3">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-6 h-6 rounded-full bg-red-500"></div>
+                        <span class="text-sm">前景对象</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <div class="w-6 h-6 rounded-full bg-blue-500"></div>
+                        <span class="text-sm">背景区域</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <div class="w-6 h-6 rounded-full bg-yellow-500"></div>
+                        <span class="text-sm">精细调整</span>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <button class="w-full px-4 py-2 bg-secondary text-white rounded-md hover:bg-secondary/90 transition-all-300 shadow-md hover:shadow-lg flex items-center justify-center">
+                        <i class="fa fa-magic mr-2"></i> 自动分割
+                    </button>
+                </div>
+            </div>
+            
+            <div class="mt-auto">
+                <h2 class="text-lg font-semibold mb-3 flex items-center">
+                    <i class="fa fa-info-circle text-primary mr-2"></i> 使用说明
+                </h2>
+                <ul class="text-sm text-gray-600 space-y-2">
+                    <li class="flex items-start">
+                        <i class="fa fa-check-circle text-green-500 mt-1 mr-2"></i>
+                        <span>上传图像后，使用鼠标框选需要分割的区域</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fa fa-check-circle text-green-500 mt-1 mr-2"></i>
+                        <span>点击"自动分割"按钮生成初步结果</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fa fa-check-circle text-green-500 mt-1 mr-2"></i>
+                        <span>使用不同颜色的画笔工具进行精细调整</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- 中间画布区域 -->
+        <div class="lg:w-2/4 bg-white rounded-xl shadow-soft p-5 flex flex-col">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold flex items-center">
+                    <i class="fa fa-image text-primary mr-2"></i> 图像预览
+                </h2>
+                <div class="flex items-center space-x-2">
+                    <button class="p-2 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-all-300">
+                        <i class="fa fa-download"></i>
+                    </button>
+                    <button class="p-2 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-all-300">
+                        <i class="fa fa-expand"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="flex-grow bg-gray-100 rounded-lg overflow-hidden relative flex items-center justify-center">
+                <div id="canvasContainer" class="relative mx-auto">
+                    <canvas id="imageCanvas" class="max-w-full max-h-[60vh] shadow-md"></canvas>
+                    
+                    <!-- 图像加载中状态 -->
+                    <div id="loadingOverlay" class="absolute inset-0 bg-black/50 flex items-center justify-center hidden">
+                        <div class="bg-white p-4 rounded-lg shadow-lg flex items-center space-x-3">
+                            <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                            <span class="font-medium">处理中...</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 无图像提示 -->
+                <div id="emptyState" class="text-center p-6">
+                    <div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fa fa-image text-primary text-2xl"></i>
+                    </div>
+                    <h3 class="text-gray-700 font-medium mb-2">未选择图像</h3>
+                    <p class="text-gray-500 text-sm">请从左侧面板上传图像开始分割</p>
+                </div>
+            </div>
+            
+            <div class="mt-4 flex justify-between items-center">
+                <div class="text-sm text-gray-500">
+                    画布大小: <span id="canvasSize">0 x 0 px</span>
+                </div>
+                <div class="flex space-x-2">
+                    <button class="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-all-300">
+                        重置视图
+                    </button>
+                    <button class="px-3 py-1 text-xs bg-primary text-white rounded hover:bg-primary/90 transition-all-300">
+                        查看历史
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 右侧结果面板 -->
+        <div class="lg:w-1/4 bg-white rounded-xl shadow-soft p-5 flex flex-col gap-5">
+            <div>
+                <h2 class="text-lg font-semibold mb-3 flex items-center">
+                    <i class="fa fa-th-large text-primary mr-2"></i> 分割结果
+                </h2>
+                <div id="resultsContainer" class="space-y-4">
+                    <!-- 结果预览 -->
+                    <div class="rounded-lg overflow-hidden border border-gray-200 hover:border-primary transition-all-300">
+                        <div class="aspect-video bg-gray-100 flex items-center justify-center">
+                            <img id="resultPreview" src="https://picsum.photos/400/300" alt="分割结果预览" class="w-full h-full object-cover">
+                        </div>
+                        <div class="p-3 bg-white">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-sm font-medium">前景提取</h3>
+                                <div class="flex space-x-1">
+                                    <button class="p-1 text-xs text-gray-500 hover:text-primary transition-all-300">
+                                        <i class="fa fa-download"></i>
+                                    </button>
+                                    <button class="p-1 text-xs text-gray-500 hover:text-primary transition-all-300">
+                                        <i class="fa fa-expand"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 分割图层 -->
+                    <div>
+                        <h3 class="text-sm font-medium mb-2">分割图层</h3>
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between p-2 bg-gray-50 rounded-md hover:bg-gray-100 transition-all-300">
+                                <div class="flex items-center">
+                                    <div class="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
+                                    <span class="text-sm">主体对象</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <input type="checkbox" checked class="w-4 h-4 rounded text-primary focus:ring-primary">
+                                    <button class="text-xs text-gray-500 hover:text-primary transition-all-300">
+                                        <i class="fa fa-pencil"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center justify-between p-2 bg-gray-50 rounded-md hover:bg-gray-100 transition-all-300">
+                                <div class="flex items-center">
+                                    <div class="w-3 h-3 rounded-full bg-blue-500 mr-2"></div>
+                                    <span class="text-sm">背景区域</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <input type="checkbox" checked class="w-4 h-4 rounded text-primary focus:ring-primary">
+                                    <button class="text-xs text-gray-500 hover:text-primary transition-all-300">
+                                        <i class="fa fa-pencil"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center justify-between p-2 bg-gray-50 rounded-md hover:bg-gray-100 transition-all-300">
+                                <div class="flex items-center">
+                                    <div class="w-3 h-3 rounded-full bg-yellow-500 mr-2"></div>
+                                    <span class="text-sm">精细调整</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <input type="checkbox" checked class="w-4 h-4 rounded text-primary focus:ring-primary">
+                                    <button class="text-xs text-gray-500 hover:text-primary transition-all-300">
+                                        <i class="fa fa-pencil"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-auto">
+                <button class="w-full py-3 bg-primary text-white rounded-md hover:bg-primary/90 transition-all-300 shadow-md hover:shadow-lg flex items-center justify-center font-medium">
+                    <i class="fa fa-download mr-2"></i> 导出所有结果
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-white border-t border-gray-200 py-4">
+        <div class="container mx-auto px-4 flex flex-col md:flex-row justify-between items-center">
+            <div class="text-sm text-gray-500 mb-3 md:mb-0">
+                © 2025 智能图像分割工具 | 版本 1.0.0
+            </div>
+            <div class="flex space-x-4">
+                <a href="#" class="text-gray-500 hover:text-primary transition-all-300 text-sm">
+                    <i class="fa fa-question-circle mr-1"></i> 帮助中心
+                </a>
+                <a href="#" class="text-gray-500 hover:text-primary transition-all-300 text-sm">
+                    <i class="fa fa-file-text-o mr-1"></i> 文档
+                </a>
+                <a href="#" class="text-gray-500 hover:text-primary transition-all-300 text-sm">
+                    <i class="fa fa-envelope-o mr-1"></i> 联系我们
+                </a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // 主JavaScript代码（与之前优化版本相同）
+        document.addEventListener('DOMContentLoaded', () => {
+            // 获取DOM元素并进行检查
+            const imageInput = document.getElementById('imageInput');
+            const canvas = document.getElementById('imageCanvas');
+            const canvasContainer = document.getElementById('canvasContainer');
+            const emptyState = document.getElementById('emptyState');
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            const canvasSize = document.getElementById('canvasSize');
+            const clearButton = document.getElementById('clearButton');
+            const undoButton = document.getElementById('undoButton');
+            
+            if (!imageInput || !canvas) {
+                console.error('Required elements not found!');
+                return;
+            }
+            
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                console.error('Canvas context not supported!');
+                return;
+            }
+            
+            // 状态变量
+            let isDrawing = false;
+            let startX = 0;
+            let startY = 0;
+            let currentImage = null;
+            let currentRect = null;
+            let activeDrawings = [];
+            let drawingHistory = [];
+            
+            // 清理画布并绘制图像和所有矩形
+            function redrawCanvas() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                if (currentImage) {
+                    ctx.drawImage(currentImage, 0, 0, canvas.width, canvas.height);
+                }
+                
+                // 绘制所有已保存的矩形
+                activeDrawings.forEach(rect => {
+                    ctx.strokeStyle = 'red';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+                });
+                
+                // 绘制当前正在绘制的矩形
+                if (currentRect) {
+                    ctx.strokeStyle = 'red';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(currentRect.x, currentRect.y, currentRect.width, currentRect.height);
+                }
+            }
+            
+            // 显示加载状态
+            function showLoading() {
+                loadingOverlay.classList.remove('hidden');
+            }
+            
+            // 隐藏加载状态
+            function hideLoading() {
+                loadingOverlay.classList.add('hidden');
+            }
+            
+            // 更新画布大小显示
+            function updateCanvasSize() {
+                canvasSize.textContent = `${canvas.width} x ${canvas.height} px`;
+            }
+            
+            // 处理图像加载
+            function handleImageLoad(e) {
+                showLoading();
+                
+                const img = new Image();
+                img.onload = () => {
+                    // 设置画布尺寸与图像一致
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    currentImage = img;
+                    activeDrawings = [];
+                    drawingHistory = [];
+                    
+                    // 更新UI状态
+                    emptyState.classList.add('hidden');
+                    canvasContainer.classList.remove('hidden');
+                    updateCanvasSize();
+                    
+                    // 模拟处理延迟
+                    setTimeout(() => {
+                        redrawCanvas();
+                        hideLoading();
+                    }, 800);
+                };
+                
+                img.onerror = (err) => {
+                    console.error('Error loading image:', err);
+                    alert('Failed to load image!');
+                    hideLoading();
+                };
+                
+                img.src = e.target.result;
+            }
+            
+            // 鼠标按下事件
+            canvas.addEventListener('mousedown', (e) => {
+                if (!currentImage) return;
+                
+                isDrawing = true;
+                const rect = canvas.getBoundingClientRect();
+                startX = e.clientX - rect.left;
+                startY = e.clientY - rect.top;
+            });
+            
+            // 鼠标移动事件 - 优化性能
+            canvas.addEventListener('mousemove', (e) => {
+                if (!isDrawing || !currentImage) return;
+                
+                const rect = canvas.getBoundingClientRect();
+                const currentX = e.clientX - rect.left;
+                const currentY = e.clientY - rect.top;
+                
+                // 计算矩形坐标和尺寸
+                const x = Math.min(startX, currentX);
+                const y = Math.min(startY, currentY);
+                const width = Math.abs(currentX - startX);
+                const height = Math.abs(currentY - startY);
+                
+                currentRect = { x, y, width, height };
+                redrawCanvas(); // 直接重绘而不是通过Image对象
+            });
+            
+            // 鼠标释放事件
+            canvas.addEventListener('mouseup', () => {
+                if (!isDrawing || !currentRect) return;
+                
+                activeDrawings.push(currentRect);
+                drawingHistory.push({...currentRect});
+                currentRect = null;
+                isDrawing = false;
+                
+                // 模拟分割处理
+                simulateSegmentation();
+            });
+            
+            // 鼠标移出画布事件
+            canvas.addEventListener('mouseout', () => {
+                if (isDrawing) {
+                    isDrawing = false;
+                    currentRect = null;
+                    redrawCanvas();
+                }
+            });
+            
+            // 处理文件选择
+            imageInput.addEventListener('change', (e) => {
+                if (e.target.files && e.target.files[0]) {
+                    const reader = new FileReader();
+                    reader.onload = handleImageLoad;
+                    reader.onerror = (err) => {
+                        console.error('Error reading file:', err);
+                        alert('Failed to read file!');
+                    };
+                    reader.readAsDataURL(e.target.files[0]);
+                }
+            });
+            
+            // 清除按钮功能
+            clearButton.addEventListener('click', () => {
+                if (!currentImage) return;
+                
+                activeDrawings = [];
+                drawingHistory = [];
+                redrawCanvas();
+            });
+            
+            // 撤销按钮功能
+            undoButton.addEventListener('click', () => {
+                if (drawingHistory.length > 0) {
+                    activeDrawings.pop();
+                    drawingHistory.pop();
+                    redrawCanvas();
+                }
+            });
+            
+            // 模拟分割处理
+            function simulateSegmentation() {
+                showLoading();
+                
+                // 模拟处理延迟
+                setTimeout(() => {
+                    // 更新结果预览
+                    const resultPreview = document.getElementById('resultPreview');
+                    resultPreview.src = 'https://picsum.photos/400/300?' + Date.now();
+                    
+                    hideLoading();
+                }, 1500);
+            }
+            
+            // 页面卸载时清理
+            window.addEventListener('beforeunload', () => {
+                // 清除所有事件监听器
+                canvas.removeEventListener('mousedown');
+                canvas.removeEventListener('mousemove');
+                canvas.removeEventListener('mouseup');
+                canvas.removeEventListener('mouseout');
+                imageInput.removeEventListener('change');
+                clearButton.removeEventListener('click');
+                undoButton.removeEventListener('click');
+            });
+            
+            // 初始化显示空状态
+            if (!currentImage) {
+                canvasContainer.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>    
